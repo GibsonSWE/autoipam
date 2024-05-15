@@ -1,0 +1,10 @@
+*test.py
+pwd.json
+*.json
+*.log
+output.txt
+__pycache__
+env
+to-do.txt
+*.csv
+test/

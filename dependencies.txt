@@ -1,0 +1,8 @@
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.6
+ipaddress==1.0.23
+pip-system-certs==4.0
+requests==2.31.0
+urllib3==2.2.1
+wrapt==1.16.0
