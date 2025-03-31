@@ -1,0 +1,5 @@
+
+Todo:
+  ☐ Move if statement for export_update_report() to outside of the functions
+  ☐ Create config file for the script
+  ☐ Improve error handling @started(25-03-30 03:50)
