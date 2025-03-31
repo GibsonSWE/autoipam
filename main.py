@@ -583,56 +583,46 @@ def update_ipam(devices):
 
 def export_update_report(updated_subnets, updated_addresses):
     """Exports a report in csv-format with all applied changes"""
-    export = False
-    export_prompt = input('Export report? [Y/n] ').lower().strip()
-    if export_prompt == 'y' or export_prompt == '':
 
-        if len(updated_subnets) > 0:
-            # Export subnets report
-            export = True
-            field_names = [
-                'id',
-                'change-type',
-                'old-network-address',
-                'new-network-address',
-                'old-cidr',
-                'new-cidr',
-                'old-subnet-mask',
-                'new-subnet-mask',
-                'old-subnet-name',
-                'new-subnet-name',
-                'old-subnet-description',
-                'new-subnet-description',
-                'old-vrf',
-                'new-vrf'
-            ]
-            utils.export_csv(c.SUBNET_REPORT_PATH+c.SUBNET_REPORT_FILE_NAME, updated_subnets, field_names)
+    # Export subnets report
+    field_names = [
+        'id',
+        'change-type',
+        'old-network-address',
+        'new-network-address',
+        'old-cidr',
+        'new-cidr',
+        'old-subnet-mask',
+        'new-subnet-mask',
+        'old-subnet-name',
+        'new-subnet-name',
+        'old-subnet-description',
+        'new-subnet-description',
+        'old-vrf',
+        'new-vrf'
+    ]
+    utils.export_csv(c.SUBNET_REPORT_PATH+c.SUBNET_REPORT_FILE_NAME, updated_subnets, field_names)
 
-        if len(updated_addresses) > 0:
-            # Export addresses report
-            export = True
-            field_names = [
-                'id', 
-                'change-type',
-                'device-type', 
-                'ip', 
-                'old-hostname', 
-                'new-hostname', 
-                'old-description',
-                'new-description',
-                'old-is_gateway',
-                'new-is_gateway',
-                'old-owner',
-                'new-owner',
-                'old-mac',
-                'new-mac',
-                'old-device-serial',
-                'new-device-serial'
-            ]
-            utils.export_csv(c.ADDRESS_REPORT_PATH+c.ADDRESS_REPORT_FILE_NAME, updated_addresses, field_names)
-
-        if not export:
-            print('No changes to export.')
+    # Export addresses report
+    field_names = [
+        'id', 
+        'change-type',
+        'device-type', 
+        'ip', 
+        'old-hostname', 
+        'new-hostname', 
+        'old-description',
+        'new-description',
+        'old-is_gateway',
+        'new-is_gateway',
+        'old-owner',
+        'new-owner',
+        'old-mac',
+        'new-mac',
+        'old-device-serial',
+        'new-device-serial'
+    ]
+    utils.export_csv(c.ADDRESS_REPORT_PATH+c.ADDRESS_REPORT_FILE_NAME, updated_addresses, field_names)
 
 
 def show_diff(pending_changes):
