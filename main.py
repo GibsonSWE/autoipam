@@ -343,12 +343,12 @@ def calc_addr_update_data(device:dict, interface:dict, address_response:dict):
         updated_address['new-owner'] = device['owner']
         updated_address['old-owner'] = address_response['data'][0]['owner']
 
-    if address_response['data'][0]['mac'] != interface['mac'] and interface['mac'] not in (None, ''):
-        updated_address['new-mac'] = interface['mac']  
+    if address_response['data'][0]['mac'] != interface['mac'].lower() and interface['mac'] not in (None, ''):
+        updated_address['new-mac'] = interface['mac'].lower()  
         updated_address['old-mac'] = address_response['data'][0]['mac']
 
-    if address_response['data'][0]['custom_Device_Serial'] != device['serial'] and device['serial'] not in (None, ''):
-        updated_address['new-device-serial'] = device['serial']
+    if address_response['data'][0]['custom_Device_Serial'] != device['serial'].upper() and device['serial'] not in (None, ''):
+        updated_address['new-device-serial'] = device['serial'].upper()
         updated_address['old-device-serial'] = address_response['data'][0]['custom_Device_Serial']
     
     if updated_address and 'type' in device:
@@ -369,8 +369,8 @@ def compile_new_addr_data(device:dict, interface:dict, address_id:int=None):
     new_address_data['new-description'] = interface['description']
     new_address_data['new-is_gateway'] = 0 if interface['is-gateway'] is None else interface['is-gateway']
     new_address_data['new-owner'] = device['owner']
-    new_address_data['new-mac'] = interface['mac']
-    new_address_data['new-device-serial'] = device['serial']
+    new_address_data['new-mac'] = interface['mac'].lower()
+    new_address_data['new-device-serial'] = device['serial'].upper()
     return new_address_data
 
 
