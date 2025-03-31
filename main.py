@@ -577,8 +577,14 @@ def update_ipam(devices):
     if len(conflicts) > 0:
         utils.export_json(c.CONFLICTS_PATH+c.CONFLICT_FILE_NAME, conflicts)
 
-    print('Update complete\n')
-    export_update_report(updated_subnets, updated_addresses)
+
+    if len(updated_subnets) > 0 or len(updated_addresses) > 0:
+        print(f'Created {len(updated_subnets)} new subnets')
+        export_prompt = input('Export report? [Y/n] ').lower().strip()
+        if export_prompt == 'y' or export_prompt == '':
+            export_update_report(updated_subnets, updated_addresses)
+    else:
+        print('No changes were made')
 
 
 def export_update_report(updated_subnets, updated_addresses):
