@@ -94,7 +94,7 @@ def check_for_ipv4address(interfaces):
 
 
 def main():
-    """Main function, should only be used for developement, testing and debugging."""
+    """Main function, should only be used for development, testing and debugging."""
     token = get_token()
     devices = []
     offset = 0

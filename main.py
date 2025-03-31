@@ -20,7 +20,7 @@ def get_from_dnac():
     device_data = []
     
     offset = 0
-    print('Requesting device data from DNA-Center, this may take a while...\n')
+    print('Requesting device data from DNA-Center. Please wait...\n')
     while True:
         try:
             response = dnac_api.get_device_list(token, 'Routers', offset)
@@ -69,7 +69,7 @@ def get_from_dnac():
                 if utils.check_ip_in_ignored(interface['ipv4Address']):
                     continue
                 elif interface['adminStatus'] == 'DOWN':
-                    print(f'Interface {interface["portName"]} administratively down, skipping..')
+                    print(f'Interface {interface["portName"]} administratively down. Skipping...')
                     continue
                 selected_interface_data = { 
                     'description': interface['portName'],
@@ -388,7 +388,7 @@ def compile_new_subnet_data(subnet_id:int, network_address:str, subnet_mask:str,
 
 
 def calculate_diff(devices):
-    """Calculates the differencies between the source and the IPAM database"""
+    """Calculates the differences between the source and the IPAM database"""
 
     #Defines a new dictionary including four lists with pending new and updated subnets and addresses
     pending_changes = {
@@ -453,7 +453,7 @@ def calculate_diff(devices):
                         pending_changes['new-addresses'].append(new_address)
 
             else:
-                print(f"IP-address {interface['ipv4Address']:15} already exists")
+                print(f"IP-address {interface['ipv4Address']:10} already exists in the IPAM-database")
                 updated_address = calc_addr_update_data(device, interface, address_response)
 
                 if updated_address:
@@ -462,6 +462,8 @@ def calculate_diff(devices):
                     updated_address['change-type'] = 'update'
                     
                     pending_changes['updated-addresses'].append(updated_address)
+                else:
+                    print(f"No changes needed for {interface['ipv4Address']}")
 
     return pending_changes   
 
@@ -482,7 +484,7 @@ def update_ipam(devices):
             updated_subnet = {}
 
             if address_response is not False:
-                print(f"IP-address {interface['ipv4Address']:15} already exists")
+                print(f"IP-address {interface['ipv4Address']:10} already exists in the IPAM-database")
 
                 updated_address = calc_addr_update_data(device, interface, address_response)
 
@@ -497,6 +499,8 @@ def update_ipam(devices):
                         raise e
                     else:
                         updated_addresses.append(updated_address)
+                else:
+                    print(f"No changes needed for address object {interface['ipv4Address']}")
 
             else:
                 subnet = utils.calc_subnet(interface['ipv4Address'], interface['ipv4Mask'])
@@ -524,8 +528,6 @@ def update_ipam(devices):
                     except Exception as e:
                         raise e
                     
-                    print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
-                    
                     if master_subnet is not None:
                         try:
                             master_subnet_id = ipam_api.get_subnet_id(master_subnet)
@@ -545,6 +547,8 @@ def update_ipam(devices):
                         except Exception as e:
                             raise e
                     else:
+                        print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
+                        
                         try:
                             response = ipam_api.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
                             subnet_id = response['id']
@@ -577,6 +581,7 @@ def update_ipam(devices):
     if len(conflicts) > 0:
         utils.export_json(c.CONFLICTS_PATH+c.CONFLICT_FILE_NAME, conflicts)
 
+    print('\nUpdate finished!')
 
     if len(updated_subnets) > 0 or len(updated_addresses) > 0:
         print(f'Created {len(updated_subnets)} new subnets')
@@ -632,7 +637,7 @@ def export_update_report(updated_subnets, updated_addresses):
 
 
 def show_diff(pending_changes):
-    """Displays the calculated differencies between the source and the IPAM database"""
+    """Displays the calculated differences between the source and the IPAM database"""
     print('\nPending changes:')
 
     print('\nNew subnets:')    
@@ -662,7 +667,7 @@ def show_diff(pending_changes):
             for key, value in entry.items():
                 print(f"    {key}: {value}")
 
-    # Creates a file in json-format and exports the calculated differencies between the source and the IPAM database
+    # Creates a file in json-format and exports the calculated differences between the source and the IPAM database
     while True:
         export_prompt = input('\nExport the diff result? [Y/n] ').lower().strip()
         if export_prompt == 'n':
@@ -692,7 +697,7 @@ def source_checkpoint():
 
     print()
     while True:
-        device_select_prompt = input("Select device: [id/all] ").lower().strip()
+        device_select_prompt = input("Select device: [ID/all] ").lower().strip()
         if device_select_prompt == 'exit':
             return None
         elif device_select_prompt == 'all':   
@@ -713,7 +718,7 @@ def source_checkpoint():
 
 
 def lvl2():
-    """Subsession level 2"""
+    """Sub session level 2"""
     while True:
         readline.set_completer(cli_utils.lvl2_completer)
         readline.parse_and_bind('tab: complete')

@@ -14,7 +14,7 @@ def show_version():
 
 
 def calc_org(hostname):
-    """Calculates organisation for device using hostname (Not yet implemented)"""
+    """Calculates organization for device using hostname (Not yet implemented)"""
     pass
 
 
@@ -30,7 +30,7 @@ def calc_owner(hostname):
 
 def calc_subnet(ip_address, subnet_mask):
     """Calculates subnet information from ip-address and subnet mask"""
-    print(f"\nCalculating subnet for ip {ip_address} with mask {subnet_mask}")
+    print(f"Calculating subnet for ip {ip_address} with mask {subnet_mask}")
     ip = ipaddress.IPv4Address(ip_address)
     subnet_mask = ipaddress.IPv4Address(subnet_mask)
 
@@ -71,7 +71,7 @@ def check_ip_in_ignored(ip_address):
     """Checks if a given ip address is part of the ignored address ranges configured in constants.py"""
     for subnet in c.IGNORED_IP_RANGES:
         if check_ip_in_subnet(ip_address, subnet):
-            print(f'{ip_address:<16} in list of ignored IP-ranges, skipping')
+            print(f'{ip_address:<16} in list of ignored IP-ranges. Skipping...')
             return True
     return False
 
@@ -128,7 +128,7 @@ def export_json(file_name, data):
 
 
 def export_csv(file_name, data, fieldnames):
-    """Creates a csv file with provided data"""
+    """Creates a csv file with provided data and ensures the required folder structure exists"""
     timestamp = f'_{datetime.now().strftime("%Y%m%d_%H%M")}'
     full_file_name = file_name+timestamp
     file_extension = '.csv'
@@ -138,7 +138,7 @@ def export_csv(file_name, data, fieldnames):
         writer.writeheader()
         for row in data:
             writer.writerow(row)
-    print(f'{file_name} created')
+    print(f'{unique_file_name} created')
 
 
 def check_duplicate_file(file_name, file_extension):

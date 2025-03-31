@@ -65,8 +65,8 @@ def get_subnet(network_address):
 
 
 def get_subnet_id(network_address):
-    """Requests a subnet id for a given network address"""
-    print(f'Searching subnet-id for {network_address}')
+    """Requests a subnet ID for a given network address"""
+    print(f'Searching subnet ID for {network_address}')
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
 
     try:
@@ -136,9 +136,10 @@ def get_vrf_id(vrf_name):
         raise Exception(f"An unexpected error occurred while processing the response: {e}")
 
     for vrf in vrf_list:
-        if vrf['name'] == vrf_name:
-            return vrf['vrfId']
-        
+        if vrf.get('name') == vrf_name:
+            return vrf.get('vrfId')
+
+    print(f"VRF with name '{vrf_name}' not found")
     return None
         
 
@@ -166,19 +167,20 @@ def get_master_subnet(possible_master_subnets):
     sorted_possible_master_subnets = sorted(existing_possible_master_subnets, key=lambda x: ipaddress.ip_network(x).prefixlen, reverse=True)
     
     print(f'Matching master subnets found:')
-    for subnet in sorted_possible_master_subnets:
-        print(subnet)
-    print()
 
     if len(sorted_possible_master_subnets) > 0:
+        for subnet in sorted_possible_master_subnets:
+            print(subnet)
+        print()        
         return sorted_possible_master_subnets[0]
     else:
+        print('None')
         return None
 
 
 def create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, section_id, master_subnet_id=None):
     """Creates a new subnet object in the IPAM-database"""
-    print(f'Creating entry for subnet {network_address}/{cidr}')
+    print(f'Creating object for subnet {network_address}/{cidr}')
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
 
     params = {
@@ -237,7 +239,7 @@ def create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_descri
 def get_address(network_address):
     """Requests data for a given network address"""
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
-    print('Requesting interface data...')
+    print(f'Requesting data for address {network_address} from {c.IPAM_URL}')
 
     try:
         response = requests.get(
@@ -266,7 +268,7 @@ def get_address(network_address):
 
 def create_address(interface, device, subnet_id):
     """Creates a new address object in the IPAM-database"""
-    print(f"Creating entry for address: {interface['ipv4Address']}")
+    print(f"Creating object for address {interface['ipv4Address']}")
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
     params = {
         'subnetId': subnet_id,
@@ -314,7 +316,7 @@ def create_address(interface, device, subnet_id):
 
 def update_address(updated_address):
     """Updates an existing address object in the IPAM-database"""
-    print(f"Updating address entry {updated_address['id']}...")
+    print(f"Updating address object ID: {updated_address['id']}...")
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
     params = {}
 
