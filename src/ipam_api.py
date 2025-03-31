@@ -30,38 +30,30 @@ def get_subnet(network_address):
     """Requests subnet information for a given network address"""
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
 
-    try:
-        response = requests.get(
-            c.IPAM_URL+c.IPAM_GET_SUBNET+network_address+'/',
-            headers=headers, 
-            verify=True
-        )
 
-        if response.status_code != 200:
-            raise ValueError(f"Unexpected response status: {response.status_code} - {response.content}")
+    response = requests.get(
+        c.IPAM_URL+c.IPAM_GET_SUBNET+network_address+'/',
+        headers=headers, 
+        verify=True
+    )
 
-        response_data = response.json()
-        if not response_data.get('success', False):
-            if response_data.get('message') == 'No subnets found':
-                return None
-            else:
-                raise ValueError(f"API error: {response_data.get('message')}")
+    if response.status_code != 200:
+        raise ValueError(f"Unexpected response status: {response.status_code} - {response.content}")
 
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except ValueError as e:
-        raise ValueError(f"Value error: {e}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
-    else:
-        subnet = {
-            'network_address': response.json()['data'][0]['subnet'],
-            'cidr': response.json()['data'][0]['mask'],
-            'id': response.json()['data'][0]['id']
-        }
-        return subnet
+    response_data = response.json()
+    if not response_data.get('success', False):
+        if response_data.get('message') == 'No subnets found':
+            return None
+        else:
+            raise ValueError(f"API error: {response_data.get('message')}")
+
+
+    subnet = {
+        'network_address': response.json()['data'][0]['subnet'],
+        'cidr': response.json()['data'][0]['mask'],
+        'id': response.json()['data'][0]['id']
+    }
+    return subnet
 
 
 def get_subnet_id(network_address):
@@ -69,71 +61,45 @@ def get_subnet_id(network_address):
     print(f'Searching subnet ID for {network_address}')
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
 
-    try:
-        response = requests.get(
-            c.IPAM_URL+c.IPAM_GET_SUBNET+network_address+'/',
-            headers=headers, 
-            verify=True
-        )
-        if response.status_code == 404:
-            response_data = response.json()
-            if response_data.get('message') == 'No subnets found':
-                print(response_data['message'])
-                return None
-            else:
-                # raise ValueError(f"Unexpected 404 response: {response_data.get('message')}")
-                raise ValueError(f"Unexpected 404 response: {response_data}")
-        else:
-            response.raise_for_status()  # Raise an HTTPError for other bad responses (4xx and 5xx)
 
+    response = requests.get(
+        c.IPAM_URL + c.IPAM_GET_SUBNET + network_address + '/',
+        headers=headers,
+        verify=True
+    )
+    if response.status_code == 404:
         response_data = response.json()
-        subnet_id = response_data['data'][0]['id']
-        print(f"Found subnet with ID: {subnet_id}")
-        return subnet_id
+        if response_data.get('message') == 'No subnets found':
+            print(response_data['message'])
+            return None
+        else:
+            # raise ValueError(f"Unexpected 404 response: {response_data.get('message')}")
+            raise ValueError(f"Unexpected 404 response: {response_data}")
+    else:
+        response.raise_for_status()  # Raise an HTTPError for other bad responses (4xx and 5xx)
 
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        raise ValueError(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-    except ValueError as e:
-        raise ValueError(f"Value error: {e}")
-    except KeyError as e:
-        raise KeyError(f"Unexpected response structure: Missing key {e}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+    response_data = response.json()
+    subnet_id = response_data['data'][0]['id']
+    print(f"Found subnet with ID: {subnet_id}")
+    return subnet_id
     
 
 def get_vrf_id(vrf_name):
     """Requests a list of available VRFs from the IPAM database and calculates matching vrfId for a specified VRF-name"""
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
 
-    try:
-        response = requests.get(
-            c.IPAM_URL+c.IPAM_GET_VRFS,
-            headers=headers,
-            verify=True
-        )
-        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        raise ValueError(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+    response = requests.get(
+        c.IPAM_URL + c.IPAM_GET_VRFS,
+        headers=headers,
+        verify=True
+    )
+    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
 
-    try:
-        response_data = response.json()
-        if not response_data.get('success', False):
-            raise ValueError(f"API error: {response_data.get('message')}")
-        vrf_list = response_data.get('data', [])
-    except (ValueError, KeyError) as e:
-        raise ValueError(f"Error parsing response: {e}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred while processing the response: {e}")
+    response_data = response.json()
+    if not response_data.get('success', False):
+        raise ValueError(f"API error: {response_data.get('message')}")
+    vrf_list = response_data.get('data', [])
+
 
     for vrf in vrf_list:
         if vrf.get('name') == vrf_name:
@@ -156,12 +122,6 @@ def get_master_subnet(possible_master_subnets):
                 continue
             else:
                 print(f"Value error while processing subnet {master_subnet}: {e}")
-        except ConnectionError as e:
-            print(f"Connection error while processing subnet {master_subnet}: {e}")
-        except TimeoutError as e:
-            print(f"Timeout error while processing subnet {master_subnet}: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred while processing subnet {master_subnet}: {e}")
 
     # Sorts the existing master subnets by prefix length in descending order
     sorted_possible_master_subnets = sorted(existing_possible_master_subnets, key=lambda x: ipaddress.ip_network(x).prefixlen, reverse=True)
@@ -199,41 +159,26 @@ def create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_descri
     if subnet_name != '' and subnet_name is not None:
         params['custom_Subnet_Name'] = subnet_name
 
-    try:
+
         response = requests.post(
-            c.IPAM_URL+c.IPAM_CREATE_SUBNET,
-            headers=headers, 
+            c.IPAM_URL + c.IPAM_CREATE_SUBNET,
+            headers=headers,
             verify=True,
             params=params
         )
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        raise ValueError(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
-    else:
-        try:
-            response_data = response.json()
-            if response.status_code == 201:
-                print(f"{response_data['message']} with ID: {response_data['id']}")
-                return {'id': response_data['id']}
-            elif response.status_code == 409:
-                print(f"Conflict: {response_data['message']}")
-                return {
-                    'id': None,
-                    'subnet': f"{network_address}/{cidr}",
-                    'error': response_data['message']
-                }
-            else:
-                raise ValueError(f"Unexpected response: {response.status_code} - {response.content}")
-        except (ValueError, KeyError) as e:
-            raise ValueError(f"Error parsing response: {e}")
-        except Exception as e:
-            raise Exception(f"An unexpected error occurred while processing the response: {e}")
+
+        response_data = response.json()
+        if response.status_code == 201:
+            print(f"{response_data['message']} with ID: {response_data['id']}")
+            return {'id': response_data['id']}
+        elif response.status_code == 409:
+            print(f"Conflict: {response_data['message']}")
+            return {
+                'id': None,
+                'subnet': f"{network_address}/{cidr}",
+                'error': response_data['message']
+            }
     
 
 def get_address(network_address):
@@ -241,28 +186,24 @@ def get_address(network_address):
     headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
     print(f'Requesting data for address {network_address} from {c.IPAM_URL}')
 
-    try:
-        response = requests.get(
-            c.IPAM_URL+c.IPAM_SEARCH_ADDRESS+network_address+'/',
-            headers=headers, 
-            verify=True,
-        )
-        response_data = response.json()
-        if response_data.get('success') is True:
-            return response_data
-        elif response.status_code == 404 and response_data.get('message') == 'Address not found':
-            return False
-        else:
-            response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+    response = requests.get(
+        c.IPAM_URL + c.IPAM_SEARCH_ADDRESS + network_address + '/',
+        headers=headers,
+        verify=True,
+    )
+    if response.status_code == 502:
+        raise ValueError(f"Bad Gateway: Received 502 error from the server. \nResponse content: \n{response.text}")
+    
+    if 'application/json' not in response.headers.get('Content-Type', ''):
+        raise ValueError(f"Unexpected response format: {response.headers.get('Content-Type')}. Response content: {response.text}")
 
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        raise ValueError(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+    response_data = response.json()
+    if response_data.get('success') is True:
+        return response_data
+    elif response.status_code == 404 and response_data.get('message') == 'Address not found':
+        return False
+    else:
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
 
     
 
@@ -282,36 +223,21 @@ def create_address(interface, device, subnet_id):
         'custom_Device_Serial': device['serial']
     }
 
-    try:
-        response = requests.post(
-            c.IPAM_URL+c.IPAM_ADDRESSES,
-            headers=headers, 
-            verify=True,
-            params=params
-        )
-        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        error_message = f"HTTP error occurred: {e.response.status_code} - {e.response.text}"
-        print(error_message)
-        raise ValueError(error_message)
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+
+    response = requests.post(
+        c.IPAM_URL + c.IPAM_ADDRESSES,
+        headers=headers,
+        verify=True,
+        params=params
+    )
+    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+
+    response_data = response.json()
+    if response.status_code == 201:
+        print(f"{response_data['message']} with ID: {response_data['id']}\n")
+        return response_data['id']
     else:
-        try:
-            response_data = response.json()
-            if response.status_code == 201:
-                print(f"{response_data['message']} with ID: {response_data['id']}\n")
-                return response_data['id']
-            else:
-                raise ValueError(f"Unexpected response: {response.status_code} - {response.content}")
-        except (ValueError, KeyError) as e:
-            raise ValueError(f"Error parsing response: {e}")
-        except Exception as e:
-            raise Exception(f"An unexpected error occurred while processing the response: {e}")
+        raise ValueError(f"Unexpected response: {response.status_code} - {response.content}")
 
 
 def update_address(updated_address):
@@ -333,36 +259,21 @@ def update_address(updated_address):
     if 'new-device-serial' in updated_address.keys():
         params['custom_Device_Serial'] = updated_address['new-device-serial']
 
-    try:
-        response = requests.patch(
-            c.IPAM_URL+c.IPAM_ADDRESSES+str(updated_address['id'])+'/',
-            headers=headers, 
-            verify=True,
-            params=params
-        )
-        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-    except requests.ConnectionError as e:
-        raise ConnectionError(f"Connection error occurred: {e}")
-    except requests.Timeout as e:
-        raise TimeoutError(f"Request timed out: {e}")
-    except requests.HTTPError as e:
-        error_message = f"HTTP error occurred: {e.response.status_code} - {e.response.text}"
-        print(error_message)
-        raise ValueError(error_message)
-    except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+
+    response = requests.patch(
+        c.IPAM_URL + c.IPAM_ADDRESSES + str(updated_address['id']) + '/',
+        headers=headers,
+        verify=True,
+        params=params
+    )
+    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+
+    response_data = response.json()
+    if response_data.get('message') == 'Address updated':
+        print(f"Address {updated_address['ip']} updated successfully.")
+        return
     else:
-        try:
-            response_data = response.json()
-            if response_data.get('message') == 'Address updated':
-                print(f"Address {updated_address['ip']} updated successfully.")
-                return
-            else:
-                raise ValueError(f"Update failed: {response_data.get('message', 'Unknown error')}")
-        except (ValueError, KeyError) as e:
-            raise ValueError(f"Error parsing response: {e}")
-        except Exception as e:
-            raise Exception(f"An unexpected error occurred while processing the response: {e}")
+        raise ValueError(f"Update failed: {response_data.get('message', 'Unknown error')}")
 
 
 def main():

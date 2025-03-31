@@ -5,6 +5,7 @@ from src import utils
 from src import cli_utils
 from src import constants as c
 
+import requests
 import readline
 import sys
 
@@ -475,11 +476,7 @@ def update_ipam(devices):
     conflicts = []
     for device in devices:
         for interface in device['interfaces']:
-            try:
-                address_response = ipam_api.get_address(interface['ipv4Address'])
-            except Exception as e:
-                raise e
-            
+            address_response = ipam_api.get_address(interface['ipv4Address'])
             updated_address = {}
             updated_subnet = {}
 
@@ -493,12 +490,8 @@ def update_ipam(devices):
                     updated_address['change-type'] = 'update'
                     updated_address['ip'] = interface['ipv4Address']
 
-                    try:
-                        ipam_api.update_address(updated_address)
-                    except Exception as e:
-                        raise e
-                    else:
-                        updated_addresses.append(updated_address)
+                    ipam_api.update_address(updated_address)
+                    updated_addresses.append(updated_address)
                 else:
                     print(f"No changes needed for address object {interface['ipv4Address']}")
 
@@ -512,11 +505,9 @@ def update_ipam(devices):
                 subnet_description = ''
                 vrf_name = utils.calc_vrf(network_address_full)
                 vrf_id = ipam_api.get_vrf_id(vrf_name)
-                
-                try:
-                    subnet_id = ipam_api.get_subnet_id(network_address_full)
-                except Exception as e:
-                    raise e
+
+                subnet_id = ipam_api.get_subnet_id(network_address_full)
+
 
                 if subnet_id is False:
                     return
@@ -526,40 +517,33 @@ def update_ipam(devices):
                     try:
                         master_subnet = ipam_api.get_master_subnet(possible_master_subnets)
                     except Exception as e:
-                        raise e
+                        print(f"An unexpected error occurred: {e}")
                     
                     if master_subnet is not None:
-                        try:
-                            master_subnet_id = ipam_api.get_subnet_id(master_subnet)
-                        except Exception as e:
-                            raise e
-                        try:
-                            response = ipam_api.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
-                            subnet_id = response['id']
-                            if subnet_id is None:
-                                print(f'Error creating {response["subnet"]}')
-                                print(response['error'])
-                                print('Skipping...')
-                                conflicts.append(response)
-                                continue
-                            else:
-                                change_type = 'create'
-                        except Exception as e:
-                            raise e
+
+                        master_subnet_id = ipam_api.get_subnet_id(master_subnet)
+
+                        response = ipam_api.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
+                        subnet_id = response['id']
+                        if subnet_id is None:
+                            print(f'Error creating {response["subnet"]}')
+                            print(response['error'])
+                            print('Skipping...')
+                            conflicts.append(response)
+                            continue
+                        else:
+                            change_type = 'create'
                     else:
                         print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
                         
-                        try:
-                            response = ipam_api.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
-                            subnet_id = response['id']
-                            if subnet_id is None:
-                                print(f'Error creating {response["subnet"]}')
-                                print(response['error'])
-                                print('Skipping...')
-                                conflicts.append(response)
-                                continue       
-                        except Exception as e:
-                            raise e
+                        response = ipam_api.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
+                        subnet_id = response['id']
+                        if subnet_id is None:
+                            print(f'Error creating {response["subnet"]}')
+                            print(response['error'])
+                            print('Skipping...')
+                            conflicts.append(response)
+                            continue 
                     
                     # Data for NEW subnet
                     updated_subnet = compile_new_subnet_data(subnet_id, network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_name)
@@ -568,11 +552,9 @@ def update_ipam(devices):
                         
                     if subnet_id is False:
                         return
-                try:    
-                    address_id = ipam_api.create_address(interface, device, subnet_id)
-                except Exception as e:
-                    raise e
-                
+   
+                address_id = ipam_api.create_address(interface, device, subnet_id)
+
                 # Data for NEW address
                 updated_address = compile_new_addr_data(device, interface, address_id)
                 updated_address['change-type'] = 'create'
@@ -761,14 +743,47 @@ def main():
                 if command == 'update':
                     devices = cli_utils.lvl1_commands[command]()
                     if devices is not None:
-                        update_ipam(devices)
+                        try:
+                            update_ipam(devices)
+                        except requests.ConnectionError as e:
+                            print(f"Connection error occurred: {e}")
+                            break
+                        except requests.Timeout as e:
+                            print(f"Request timed out: {e}")
+                            break
+                        except requests.HTTPError as e:
+                            print(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+                            break
+                        except ValueError as e:
+                            print(f"Value error: {e}")
+                            break
+                        except Exception as e:
+                            print(f"An unexpected error occurred: {e}")
+                            break
                     else:
                         continue
                 elif command == 'diff':
                     devices = cli_utils.lvl1_commands[command]()
                     if devices is not None:
-                        pending_changes = calculate_diff(devices)
-                        show_diff(pending_changes)
+                        try:
+                            pending_changes = calculate_diff(devices)
+                        except requests.ConnectionError as e:
+                            print(f"Connection error occurred: {e}")
+                            break
+                        except requests.Timeout as e:
+                            print(f"Request timed out: {e}")
+                            break
+                        except requests.HTTPError as e:
+                            print(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+                            break
+                        except ValueError as e:
+                            print(f"Value error: {e}")
+                            break
+                        except Exception as e:
+                            print(f"An unexpected error occurred: {e}")
+                            break
+                        else:
+                            show_diff(pending_changes)
                     else:
                         continue
 
