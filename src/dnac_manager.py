@@ -1,5 +1,6 @@
 from src import constants as c
 
+import json
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -10,22 +11,23 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 def get_token():
     """Retrieves session token from DNA-center"""
-    print('Requesting session token...')
-    try:
-        response = requests.post(
-            c.DNAC_URL+c.DNAC_AUTH,
-            auth=HTTPBasicAuth(c.DNAC_USERNAME, c.DNAC_API_KEY),
-            verify=False
-        )
-    except ConnectionError as e:
-        raise e    
-    except TimeoutError as e:
-        raise e
-    except Exception as e:
-        print(response.content)
-        raise SystemExit(e)
+    print('\nRequesting session token...')
+    #try:
+    #    response = requests.post(
+    #        c.DNAC_URL+c.DNAC_AUTH,
+    #        auth=HTTPBasicAuth(c.DNAC_USERNAME, c.DNAC_API_KEY),
+    #        verify=False
+    #    )
+    #except ConnectionError as e:
+    #    raise e    
+    #except TimeoutError as e:
+    #    raise e
+    #except Exception as e:
+    #    print(response.content)
+    #    raise SystemExit(e)
         
-    token = response.json()["Token"]
+    #token = response.json()["Token"]
+    token = 1234
     return token
 
 
@@ -44,22 +46,26 @@ def get_device_list(token, family, offset=0):
     if offset > 0:
         params['offset'] = offset
 
-    try:
-        response = requests.get(
-            c.DNAC_URL+c.DNAC_NETWORK_DEVICE,
-            headers = headers,
-            verify=False,
-            params=params
-        )
-    except ConnectionError as e:
-        raise e    
-    except TimeoutError as e:
-        raise e
-    except Exception as e:
-        print(response.content)
-        raise SystemExit(e)
-    else:
-        return response.json()['response']
+    #try:
+    #    response = requests.get(
+    #        c.DNAC_URL+c.DNAC_NETWORK_DEVICE,
+    #        headers = headers,
+    #        verify=False,
+    #        params=params
+    #    )
+    #except ConnectionError as e:
+    #    raise e    
+    #except TimeoutError as e:
+    #    raise e
+    #except Exception as e:
+    #    print(response.content)
+    #    raise SystemExit(e)
+    #else:
+    #    return response.json()['response']
+
+    with open('dnac_devices.json', 'r') as f:
+        dnac_devices = json.load(f)
+    return dnac_devices['response']
 
 
 def get_interfaces(token, device):
@@ -67,21 +73,30 @@ def get_interfaces(token, device):
     response = None
     headers = {'X-Auth-Token': token, 'Content-Type': 'application/json'}
     print(f'Requesting interface data for {device["hostname"]}')
-    try:
-        response = requests.get(
-            c.DNAC_URL+c.DNAC_INTERFACES+device['id'],
-            headers=headers,
-            verify=False
-        )
-    except ConnectionError as e:
-        raise e    
-    except TimeoutError as e:
-        raise e
-    except Exception as e:
-        print(response.content)
-        raise SystemExit(e)
-    else:
-        return response.json()['response']
+    #try:
+    #    response = requests.get(
+    #        c.DNAC_URL+c.DNAC_INTERFACES+device['id'],
+    #        headers=headers,
+    #        verify=False
+    #    )
+    #except ConnectionError as e:
+    #    raise e    
+    #except TimeoutError as e:
+    #    raise e
+    #except Exception as e:
+    #    print(response.content)
+    #    raise SystemExit(e)
+    #else:
+    #    return response.json()['response']
+    
+    with open('dnac_interfaces.json', 'r') as f:
+        dnac_interfaces = json.load(f)
+    
+    for entry in dnac_interfaces:
+        if entry.get('id') == device['id']:
+            return entry['response']
+
+    raise ValueError(f'No interface data found for {device["hostname"]} with ID {device["id"]}')
 
 
 def check_for_ipv4address(interfaces):
