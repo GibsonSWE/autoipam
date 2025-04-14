@@ -186,34 +186,44 @@ class CLI:
 
     def show_diff(self, pending_changes):
         """Displays the calculated differences between the source and the IPAM database"""
-        print('\nPending changes:')
+        print('\nPending Changes:')
 
-        print('\nNew subnet-objects:')    
+        print('\nNew Subnet Objects:')    
         if not pending_changes['new-subnet-objects']:
             print('No new subnets')
         else:
             for entry in pending_changes['new-subnet-objects']:
                 print("-----------------------------------------")
                 for key, value in entry.items():
-                    print(f"    {key}: {value}")
+                    if value is not None:
+                        key = key.replace("new-", "").replace("-", " ").replace("_", " ").strip().title()
+                        if key == 'Cidr':
+                            key = key.upper()
+                            value = '/'+value
+                        print(f"    {key}: {value}")
 
-        print('\nNew address-objects:')
+        print('\nNew Address Objects:')
         if not pending_changes['new-address-objects']:
             print('No new addresses')
         else:
             for entry in pending_changes['new-address-objects']:
                 print("-----------------------------------------")
                 for key, value in entry.items():
-                    print(f"    {key}: {value}")
+                    if value is not None:
+                        key = key.replace("new-", "").replace("-", " ").replace("_", " ").strip().title()
+                        if key == 'Ip':
+                            key = key.upper()
+                        print(f"    {key}: {value}")
 
-        print('\nMismatching address data:')
+        print('\nMismatching Address Data:')
         if not pending_changes['updated-address-objects']:
             print('No changes needed')
         else:
             for entry in pending_changes['updated-address-objects']:
                 print("-----------------------------------------")
                 for key, value in entry.items():
-                    print(f"    {key}: {value}")
+                    if value is not None:    
+                        print(f"    {key}: {value}")
 
 
     def exit_cli(self):

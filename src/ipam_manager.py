@@ -457,15 +457,22 @@ class IPAMManager:
                             pending_changes['new-subnet-objects'].append(new_subnet)
                         else:
                             # Check if the new subnet address is already present in the list
-                            if network_address not in [i['new-network-address'] for i in pending_changes['new-subnets']]:
+                            if network_address not in [i['new-network-address'] for i in pending_changes['new-subnet-objects']]:
                                 pending_changes['new-subnet-objects'].append(new_subnet)
 
                     new_address = utils.compile_new_addr_data(device, interface)
 
+                    # Ensures "new-is_gateway" is properly translated for readability in terminal output
+                    if new_address['new-is_gateway'] == 0:
+                        new_address['new-is_gateway'] = False
+                    elif new_address['new-is_gateway'] == 1:
+                        new_address['new-is_gateway'] = True
+
+                    # Checks if the list is empty, and adds the new address directly without checking for duplicates
                     if not pending_changes['new-address-objects']:
                         pending_changes['new-address-objects'].append(new_address)
                     else:
-                        # Check if the new address is already present in the list
+                        # Checks if the new address is already present in the list, to avoid duplicates
                         if interface['ipv4Address'] not in [i['ip'] for i in pending_changes['new-address-objects']]:
                             pending_changes['new-address-objects'].append(new_address)
 
@@ -478,6 +485,12 @@ class IPAMManager:
                         updated_address['ip-address'] = interface['ipv4Address']
                         updated_address['change-type'] = 'update'
                         
+                        # Ensures "new-is_gateway" is properly translated for readability in terminal output
+                        if updated_address['new-is_gateway'] == 0:
+                            updated_address['new-is_gateway'] = False
+                        elif updated_address['new-is_gateway'] == 1:
+                            updated_address['new-is_gateway'] = True
+
                         pending_changes['updated-address-objects'].append(updated_address)
                     else:
                         print(f"No changes needed for {interface['ipv4Address']}")
