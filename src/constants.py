@@ -1,7 +1,7 @@
 import os
 import ipaddress
 
-RELEASE = {'version': 'v0.1.4 Beta', 'date': '2024-05-15'}
+RELEASE = {'version': 'v0.2.0 (Beta)', 'date': '2025-04-14'}
 
 SECTION_ID = 3 #SCA
 SUBNET_REPORT_PATH = '/var/autoipam-reports/subnet-reports/'   
@@ -106,3 +106,8 @@ DNAC_URL = 'https://dnac.forestproducts.sca.com'
 DNAC_AUTH = '/dna/system/api/v1/auth/token/'
 DNAC_NETWORK_DEVICE = '/dna/intent/api/v1/network-device/'
 DNAC_INTERFACES = '/dna/intent/api/v1/interface/network-device/'#{deviceId}
+
+
+# vManage endpoints
+VMANAGE_URL = ''
+VMANAGE_AUTH = ''

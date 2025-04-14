@@ -1,73 +1,257 @@
-from src import utils
-import main
+from . import utils
+from . import constants as c
+from src.ipam_manager import IPAMManager
+from src.dnac_manager import DNACManager
+from src.checkpoint_manager import CheckpointManager
+from src.vmanage_manager import VmanageManager
+
+import readline
+import requests
 
 
-def show_lvl1_help():
-    """Displays the available CLI-commands for subsession level 1"""
-    print()
-    print('Commands:        Description:')
-    print('update         - Update IPAM')
-    print('diff           - Show data difference between the IPAM database and the source')
-    print('version        - Show script version')
-    print('?/help         - Show this help output')
-    print('exit           - Exit script\n')
-    print('Press TAB to autocomplete command')
-    print('Use UP and DOWN arrows to traverse command history')
-    print()
+class CLI:
+    """CLI class that handles the command line interface"""
+
+    def __init__(self):
+        self.prompt = 'AutoIpam> '
+        self.subsession_update_prompt = 'AutoIpam (update source)> '
+        self.subsession_diff_prompt = 'AutoIpam (diff source)> '
+        self.intro = '############################## AutoIpam ##############################'
+        self.subsession = False
+        self.dnac_manager = DNACManager()
+        self.checkpoint_manager = CheckpointManager()
+        self.vmanage_manager = VmanageManager()
+        self.commands =  {
+            'info_commands': {
+                '?': lambda: self.show_help(),
+                'help': lambda: self.show_help(),
+                'version': utils.show_version
+            },
+            
+            'exit_subsession_commands': {
+                'exit': lambda: self.exit_subsession(),
+                'back': lambda: self.exit_subsession()
+            },
+
+            'exit_cli_commands': {
+                'exit': lambda: self.exit_cli(),
+                'quit': lambda: self.exit_cli()
+            },
+
+            'action_commands': {
+                'update': lambda: self.start_subsession(mode='update'),
+                'diff': lambda: self.start_subsession(mode='diff')
+            },
+
+            'source_selection_commands': {
+                'dnac': lambda: self.dnac_manager.get_from_dnac(),
+                'checkpoint': lambda: self.checkpoint_manager.source(),
+                'vmanage': lambda: self.vmanage_manager.get_from_vmanage()
+            }
+        }
 
 
-def show_lvl2_help():
-    """Displays the available CLI-commands for subsession level 2"""
-    print()
-    print('You can update IPAM with data from the following sources:')
-    print('Command:         Source:')
-    print('dnac           - Cisco DNA-Center')
-    print('checkpoint     - Check Point')
-    print('vmanage        - Cisco vmanage')
-    print('exit           - Go back')
-    print()
+    def start(self):
+        """Starts the CLI"""
+        print(self.intro)
+        utils.show_version()
+        CLI.show_help(self)
+        while True:
+            try:
+                self.set_completer(self.completer)
+                command = input(self.prompt).lower().strip()
+                if command == '':
+                    continue
+                elif command in ['exit', 'quit']:
+                    self.exit_cli()
+                    break
+                elif command in self.commands['info_commands']:
+                    self.execute_command(command)
+                elif command in self.commands['action_commands']:
+                    self.execute_command(command)
+                else:
+                    print(f"Unknown command: {command}")
+            except requests.ConnectionError as e:
+                print(f"Connection error occurred: {e}")
+                self.subsession = False
+                continue
+            except requests.Timeout as e:
+                print(f"Request timed out: {e}")
+                self.subsession = False
+                continue
+            except requests.HTTPError as e:
+                print(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+                self.subsession = False
+                continue
+            except ValueError as e:
+                print(f"Value error: {e}")
+                self.subsession = False
+                continue
+            except EOFError as e:
+                print(f"{e}. Exiting AutoIpam...")
+                self.subsession = False
+                continue
+            except KeyboardInterrupt:
+                self.subsession = False
+                continue
 
 
-def lvl1_completer(text, state):
-    """Tab completer for subsession level 1"""
-    options = [cmd for cmd in lvl1_commands.keys() if cmd.startswith(text)]
-    if state < len(options):
-        return options[state]
-    else:
+    def start_subsession(self, mode):
+        """Starts a subsession"""
+        self.subsession = True
+        self.show_help()
+        self.ipam_manager = IPAMManager()
+        while True:
+            try:
+                self.set_completer(self.completer)
+
+                if mode == 'update':
+                    self.subsession_prompt = self.subsession_update_prompt
+                elif mode == 'diff':
+                    self.subsession_prompt = self.subsession_diff_prompt
+
+                user_command = input(self.subsession_prompt).lower().strip()
+                if user_command == '':
+                    continue
+                elif user_command in ['exit', 'back']:
+                    self.subsession = False
+                    self.exit_subsession()
+                    break
+                elif user_command in self.commands['info_commands']:
+                    self.execute_command(user_command)
+                elif user_command in self.commands['source_selection_commands']:
+
+                    devices = self.execute_command(user_command)
+                    if devices is None:
+                        continue
+                    if mode == 'update':
+                        self.ipam_manager.update_ipam(devices)
+                    elif mode == 'diff':
+                        pending_changes = self.ipam_manager.calculate_diff(devices)
+                        self.show_diff(pending_changes)
+                        
+                        # Creates a file in json-format and exports the calculated differences between the source and the IPAM database
+                        while True:
+                            export_prompt = input('\nExport the diff result? [Y/n] ').lower().strip()
+                            if export_prompt == 'n':
+                                break
+                            elif export_prompt == 'y' or export_prompt == '':
+                                utils.export_json(c.DIFF_PATH+c.DIFF_EXPORT_FILE_NAME, pending_changes)
+                                break
+                else:
+                    print(f"Unknown command: {user_command}")
+            except EOFError as e:
+                if self.subsession:
+                    print()
+                    self.subsession = False
+                    break
+                else:
+                    print(f"{e}. Exiting AutoIpam...")
+                    break
+            except KeyboardInterrupt:
+                break
+
+
+    def execute_command(self, user_command):
+        """Executes a command"""
+        if user_command in self.commands['info_commands']:
+            return self.commands['info_commands'][user_command]()
+        elif user_command in self.commands['action_commands']:
+            return self.commands['action_commands'][user_command]()
+        elif user_command in self.commands['source_selection_commands']:
+            return self.commands['source_selection_commands'][user_command]()
+        else:
+            print(f"Unknown command: {user_command}")
+            return None
+
+
+    def show_help(self):
+        """Displays the available CLI-commands"""
+        if self.subsession:
+            print()
+            print('You can update IPAM with data from the following sources:')
+            print('Command:         Source:')
+            print('dnac           - Cisco DNA-Center')
+            print('checkpoint     - Check Point')
+            print('vmanage        - Cisco vmanage')
+            print('exit/back      - Go back')
+            print()
+        else:
+            print()
+            print('Commands:        Description:')
+            print('update         - Update IPAM')
+            print('diff           - Show data difference between the IPAM database and the source')
+            print('version        - Show script version')
+            print('?/help         - Show this help output')
+            print('exit/quit      - Exit script\n')
+            print('Press TAB to autocomplete command')
+            print('Use UP and DOWN arrows to traverse command history')
+            print()
+
+
+    def show_diff(self, pending_changes):
+        """Displays the calculated differences between the source and the IPAM database"""
+        print('\nPending changes:')
+
+        print('\nNew subnet-objects:')    
+        if not pending_changes['new-subnet-objects']:
+            print('No new subnets')
+        else:
+            for entry in pending_changes['new-subnet-objects']:
+                print("-----------------------------------------")
+                for key, value in entry.items():
+                    print(f"    {key}: {value}")
+
+        print('\nNew address-objects:')
+        if not pending_changes['new-address-objects']:
+            print('No new addresses')
+        else:
+            for entry in pending_changes['new-address-objects']:
+                print("-----------------------------------------")
+                for key, value in entry.items():
+                    print(f"    {key}: {value}")
+
+        print('\nMismatching address data:')
+        if not pending_changes['updated-address-objects']:
+            print('No changes needed')
+        else:
+            for entry in pending_changes['updated-address-objects']:
+                print("-----------------------------------------")
+                for key, value in entry.items():
+                    print(f"    {key}: {value}")
+
+
+    def exit_cli(self):
+        """Exits the CLI"""
+        print('Exiting AutoIpam...')
         return None
 
 
-def lvl2_completer(text, state):
-    """Tab completer for subsession level 2"""
-    options = [cmd for cmd in lvl2_commands.keys() if cmd.startswith(text)]
-    if state < len(options):
-        return options[state]
-    else:
-        return None
+    def exit_subsession(self):
+        """Callable exit function for sub sessions"""
+        return None    
 
 
-def exit_func():
-    """Callable exit function for subsessions"""
-    return None
+    def set_completer(self, completer):
+        """Sets the completer for the CLI"""
+        self.completer = completer
+        readline.set_completer(completer)
+        readline.parse_and_bind('tab: complete')
+        readline.parse_and_bind('set editing-mode emacs')
+        readline.parse_and_bind('set show-all-if-ambiguous on')
+        readline.parse_and_bind('set show-all-if-unmodified on')
 
 
-# Available CLI-commands per subsession level
-lvl1_commands = {
-    'update': main.lvl2,
-    'diff': main.lvl2,
-    'version': utils.show_version,
-    '?': show_lvl1_help,
-    'help': show_lvl1_help,
-    'exit': exit_func
-}
+    def completer(self, text, state):
+        """Tab completer"""
+        if self.subsession:
+            commands = self.commands['info_commands'] | self.commands['source_selection_commands'] | self.commands['exit_subsession_commands']
+        else:
+            commands = self.commands['info_commands'] | self.commands['action_commands'] | self.commands['exit_cli_commands']
 
-lvl2_commands = {
-    'dnac': main.get_from_dnac,
-    'checkpoint': main.source_checkpoint,
-    'vmanage': main.get_from_vmanage,
-    '?': show_lvl2_help,
-    'help': show_lvl2_help,
-    'version': utils.show_version,
-    'exit': exit_func
-}
+        options = [cmd for cmd in commands.keys() if cmd.startswith(text)]
+        if state < len(options):
+            return options[state]
+        else:
+            return None
 

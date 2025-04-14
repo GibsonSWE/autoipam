@@ -1,4 +1,5 @@
-from src import constants as c
+from . import constants as c
+from . import utils
 #from . import constants as c
 import requests
 import ipaddress
@@ -37,7 +38,7 @@ class IPAMManager:
     def get_custom_fields(self):
         """Retrieves available custom fields"""
         response = requests.get(
-            self.base_url + c.IPAM_GET_CUSTOM_FIELDS,
+            self.base_url + self.get_custom_fields_endpoint,
             headers=self.headers(), 
             verify=True
         )
@@ -58,7 +59,7 @@ class IPAMManager:
     def get_subnet(self, network_address):
         """Requests subnet information for a given network address"""
         response = requests.get(
-            self.base_url + c.IPAM_GET_SUBNET+network_address+'/',
+            self.base_url + self.get_subnet_endpoint+network_address+'/',
             headers=self.headers(), 
             verify=True
         )
@@ -86,7 +87,7 @@ class IPAMManager:
         print(f'Searching subnet ID for {network_address}')
 
         response = requests.get(
-            self.base_url + c.IPAM_GET_SUBNET + network_address + '/',
+            self.base_url + self.get_subnet_endpoint + network_address + '/',
             headers=self.headers(),
             verify=True
         )
@@ -110,7 +111,7 @@ class IPAMManager:
     def get_vrf_id(self, vrf_name):
         """Requests a list of available VRFs from the IPAM database and calculates matching vrfId for a specified VRF-name"""
         response = requests.get(
-            self.base_url + c.IPAM_GET_VRFS,
+            self.base_url + self.get_vrfs_endpoint,
             headers=self.headers(),
             verify=True
         )
@@ -161,7 +162,7 @@ class IPAMManager:
     def create_subnet(self, network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, section_id, master_subnet_id=None):
         """Creates a new subnet object in the IPAM-database"""
         print(f'Creating object for subnet {network_address}/{cidr}')
-        headers = {'token': c.IPAM_API_KEY, 'Content-Type': 'application/json'}
+
 
         params = {
             'subnet': network_address,
@@ -173,29 +174,32 @@ class IPAMManager:
         if master_subnet_id is not None:
             params['masterSubnetId'] = master_subnet_id
 
-        if subnet_name:
+        if subnet_description == '' or subnet_description is None:
+            params['description'] = 'Created by AutoIpam'
+
+        if subnet_name != '' and subnet_name is not None:
             params['custom_Subnet_Name'] = subnet_name
 
 
-            response = requests.post(
-                c.IPAM_URL + c.IPAM_CREATE_SUBNET,
-                headers=headers,
-                verify=True,
-                params=params
-            )
-            response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+        response = requests.post(
+            self.base_url + c.IPAM_CREATE_SUBNET,
+            headers=self.headers(),
+            verify=True,
+            params=params
+        )
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+        response_data = response.json()
 
-            response_data = response.json()
-            if response.status_code == 201:
-                print(f"{response_data['message']} with ID: {response_data['id']}")
-                return {'id': response_data['id']}
-            elif response.status_code == 409:
-                print(f"Conflict: {response_data['message']}")
-                return {
-                    'id': None,
-                    'subnet': f"{network_address}/{cidr}",
-                    'error': response_data['message']
-                }
+        if response.status_code == 201:
+            print(f"{response_data['message']} with ID: {response_data['id']}")
+            return {'id': response_data['id']}
+        elif response.status_code == 409:
+            print(f"Conflict: {response_data['message']}")
+            return {
+                'id': None,
+                'subnet': f"{network_address}/{cidr}",
+                'error': response_data['message']
+            }
     
 
     def get_address(self, network_address):
@@ -221,7 +225,6 @@ class IPAMManager:
             return False
         else:
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-
     
 
     def create_address(self, interface, device, subnet_id):
@@ -288,15 +291,196 @@ class IPAMManager:
             return
         else:
             raise ValueError(f"Update failed: {response_data.get('message', 'Unknown error')}")
+    
+
+    def update_ipam(self, devices):
+        """Updates the IPAM database with the provided device and interface list"""
+        updated_addresses = []
+        updated_subnets = []
+        conflicts = []
+        for device in devices:
+            for interface in device['interfaces']:
+                address_response = self.get_address(interface['ipv4Address'])
+                updated_address = {}
+                updated_subnet = {}
+
+                if address_response is not False:
+                    print(f"IP-address {interface['ipv4Address']:10} already exists in the IPAM-database")
+
+                    updated_address = utils.calc_addr_update_data(device, interface, address_response)
+
+                    if updated_address:
+                        updated_address['id'] = address_response['data'][0]['id']
+                        updated_address['change-type'] = 'update'
+                        updated_address['ip'] = interface['ipv4Address']
+
+                        self.update_address(updated_address)
+                        updated_addresses.append(updated_address)
+                    else:
+                        print(f"No changes needed for address object {interface['ipv4Address']}")
+
+                else:
+                    subnet = utils.calc_subnet(interface['ipv4Address'], interface['ipv4Mask'])
+                    network_address = subnet['network_address']
+                    network_address_full = subnet['network_address_full']
+                    subnet_mask = subnet['subnet_mask']
+                    cidr = subnet['cidr']
+                    subnet_name = interface['subnet-name']
+                    subnet_description = interface['subnet-description']
+                    vrf_name = utils.calc_vrf(network_address_full)
+                    vrf_id = self.get_vrf_id(vrf_name)
+
+                    subnet_id = self.get_subnet_id(network_address_full)
 
 
-def main(self):
-    #subnet_info = get_subnet('10.0.0.10')
-    #subnet_id = get_subnet_id('10.0.0.10')
-    subnets = self.get_all_subnets()
-    print(subnets.content[0])
+                    if subnet_id is False:
+                        return
+                    elif subnet_id is None:
+                        possible_master_subnets = utils.calc_master_subnets(network_address_full)
+                        
+                        try:
+                            master_subnet = self.get_master_subnet(possible_master_subnets)
+                        except Exception as e:
+                            print(f"An unexpected error occurred: {e}")
+                        
+                        if master_subnet is not None:
 
-if __name__ == "__main__":
-    print()
-    main()
-    print()
+                            master_subnet_id = self.get_subnet_id(master_subnet)
+
+                            response = self.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
+                            subnet_id = response['id']
+                            if subnet_id is None:
+                                print(f'Error creating {response["subnet"]}')
+                                print(response['error'])
+                                print('Skipping...')
+                                conflicts.append(response)
+                                continue
+                            else:
+                                change_type = 'create'
+                        else:
+                            print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
+                            
+                            response = self.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
+                            try:
+                                subnet_id = response['id']
+                            except TypeError as e:
+                                print(f"Type error: {e}")
+                                print(f"Subnet ID: {subnet_id}")
+                                print(f"Response: {response}")
+                                exit()
+                            if subnet_id is None:
+                                print(f'Error creating {response["subnet"]}')
+                                print(response['error'])
+                                print('Skipping...')
+                                conflicts.append(response)
+                                continue 
+                        
+                        # Data for NEW subnet
+                        updated_subnet = utils.compile_new_subnet_data(subnet_id, network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_name)
+                        updated_subnet['change-type'] = 'create'
+                        updated_subnets.append(updated_subnet)
+                            
+                        if subnet_id is False:
+                            return
+    
+                    address_id = self.create_address(interface, device, subnet_id)
+
+                    # Data for NEW address
+                    updated_address = utils.compile_new_addr_data(device, interface, address_id)
+                    updated_address['change-type'] = 'create'
+                    updated_addresses.append(updated_address)
+
+        if len(conflicts) > 0:
+            utils.export_json(c.CONFLICTS_PATH+c.CONFLICT_FILE_NAME, conflicts)
+
+        print('\nUpdate finished!')
+
+        if len(updated_subnets) > 0 or len(updated_addresses) > 0:
+            print(f'Created {len(updated_subnets)} new subnets')
+            export_prompt = input('Export report? [Y/n] ').lower().strip()
+            if export_prompt == 'y' or export_prompt == '':
+                utils.export_update_report(updated_subnets, updated_addresses)
+        else:
+            print('No changes were made')
+
+
+    def calculate_diff(self, devices):
+        """Calculates the differences between the source and the IPAM database"""
+
+        #Defines a new dictionary including four lists with pending new and updated subnets and addresses
+        pending_changes = {
+            'new-subnet-objects': [], 
+            'new-address-objects': [],
+            'updated-subnet-objects': [],
+            'updated-address-objects': []
+            }
+        
+        for device in devices:    
+            for interface in device['interfaces']:
+                try:
+                    address_response = self.get_address(interface['ipv4Address'])
+                except Exception as e:
+                    raise e
+
+                if address_response is False:
+                    subnet = utils.calc_subnet(interface['ipv4Address'], interface['ipv4Mask'])
+                    network_address = subnet['network_address']
+                    network_address_full = subnet['network_address_full']
+                    subnet_mask = subnet['subnet_mask']
+                    cidr = subnet['cidr']
+                    subnet_id = self.get_subnet_id(network_address_full)
+                    subnet_name = interface['subnet-name']
+                    subnet_description = ''
+                    vrf_name = utils.calc_vrf(network_address_full)
+
+                    if subnet_id is False:
+                        return
+                    elif subnet_id is None:
+                        # Calculates all possible master subnets for the specified subnet
+                        possible_master_subnets = utils.calc_master_subnets(network_address_full)
+
+                        # Searches for matching master subnets in the IPAM-database
+                        try:
+                            master_subnet = self.get_master_subnet(possible_master_subnets)
+                        except Exception as e:
+                            raise e
+                        
+                        print(f"Calculated master subnet for {network_address_full}: {master_subnet}")
+                        print()
+
+                        new_subnet = utils.compile_new_subnet_data(subnet_id, network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_name)
+
+                        if new_subnet['new-subnet-description'] == '' or new_subnet['new-subnet-description'] is None:
+                            new_subnet['new-subnet-description'] = 'Created by AutoIpam'
+
+                        if not pending_changes['new-subnet-objects']:
+                            pending_changes['new-subnet-objects'].append(new_subnet)
+                        else:
+                            # Check if the new subnet address is already present in the list
+                            if network_address not in [i['new-network-address'] for i in pending_changes['new-subnets']]:
+                                pending_changes['new-subnet-objects'].append(new_subnet)
+
+                    new_address = utils.compile_new_addr_data(device, interface)
+
+                    if not pending_changes['new-address-objects']:
+                        pending_changes['new-address-objects'].append(new_address)
+                    else:
+                        # Check if the new address is already present in the list
+                        if interface['ipv4Address'] not in [i['ip'] for i in pending_changes['new-address-objects']]:
+                            pending_changes['new-address-objects'].append(new_address)
+
+                else:
+                    print(f"IP-address {interface['ipv4Address']:10} already exists in the IPAM-database")
+                    updated_address = utils.calc_addr_update_data(device, interface, address_response)
+
+                    if updated_address:
+                        updated_address['id'] = address_response['data'][0]['id']
+                        updated_address['ip-address'] = interface['ipv4Address']
+                        updated_address['change-type'] = 'update'
+                        
+                        pending_changes['updated-address-objects'].append(updated_address)
+                    else:
+                        print(f"No changes needed for {interface['ipv4Address']}")
+
+        return pending_changes   
+
