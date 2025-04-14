@@ -88,12 +88,11 @@ class CLI:
                 self.subsession = False
                 continue
             except EOFError as e:
-                print(f"{e}. Exiting AutoIpam...")
-                self.subsession = False
-                continue
+                self.exit_cli()
+                return None
             except KeyboardInterrupt:
-                self.subsession = False
-                continue
+                self.exit_cli()
+                return None
 
 
     def start_subsession(self, mode):
@@ -141,15 +140,11 @@ class CLI:
                 else:
                     print(f"Unknown command: {user_command}")
             except EOFError as e:
-                if self.subsession:
-                    print()
-                    self.subsession = False
-                    break
-                else:
-                    print(f"{e}. Exiting AutoIpam...")
-                    break
+                self.exit_subsession()
+                return None
             except KeyboardInterrupt:
-                break
+                self.exit_subsession()
+                return None
 
 
     def execute_command(self, user_command):
@@ -223,12 +218,15 @@ class CLI:
 
     def exit_cli(self):
         """Exits the CLI"""
+        print()
         print('Exiting AutoIpam...')
         return None
 
 
     def exit_subsession(self):
         """Callable exit function for sub sessions"""
+        print()
+        self.subsession = False
         return None    
 
 
