@@ -30,6 +30,7 @@ class DNACManager:
         }
         return headers
 
+
     def get_token(self):
         """Retrieves session token from DNA-center"""
         print('\nRequesting session token...')
@@ -41,12 +42,12 @@ class DNACManager:
         #response.rase_for_status()
             
         #token = response.json()["Token"]
-        token = 1234
-        return token
+        self.token = 1234
+        return
 
 
     ## GET DEVICE LIST ACCORDING TO PARAMETERS
-    def get_device_list(self, token, family, offset=0):
+    def get_device_list(self, family:str, offset=0):
         """Get device list according to provided device family.\n
         Returns a maximum of 100 devices per request.\n
         Use offset to retrieve a larger number of devices."""
@@ -66,13 +67,14 @@ class DNACManager:
             #    params=params
             #)
             #return response.json()['response']
+            #response.raise_for_status()
 
         with open('dnac_devices.json', 'r') as f:
             dnac_devices = json.load(f)
         return dnac_devices['response']
 
 
-    def get_interfaces(self, token, device):
+    def get_interfaces(self, device:dict):
         """Get interface information per device"""
         response = None
         print(f'Requesting interface data for {device["hostname"]}')
@@ -82,7 +84,7 @@ class DNACManager:
         #    verify=False
         #)
         #return response.json()['response']
-        
+        #response.raise_for_status()
         with open('dnac_interfaces.json', 'r') as f:
             dnac_interfaces = json.load(f)
         
@@ -93,8 +95,8 @@ class DNACManager:
         raise ValueError(f'No interface data found for {device["hostname"]} with ID {device["id"]}')
 
 
-    def check_for_ipv4address(self, interfaces):
-        """Checks if an interface has an ipv4 address assigned"""
+    def check_for_ipv4address(self, interfaces:list):
+        """Checks if an interface has an ipv4 address assigned and returns a list of those interfaces"""
         interfaces_with_ipv4address=[]    
         for interface in interfaces:
             if interface['ipv4Address'] is not None:
@@ -104,41 +106,34 @@ class DNACManager:
 
     def get_from_dnac(self):
         """Returns list from DNA-center with interface data per device"""
-        dnac_session = DNACManager()
         try:
-            token = DNACManager.get_token(dnac_session)
+            self.get_token()
         except Exception as e:
             raise e
 
         retrieved_device_list = []
         device_data = []
         
-        offset = 0
+        request_offset = 0
         print('Requesting device data from DNA-Center. Please wait...\n')
         while True:
-            try:
-                response = DNACManager.get_device_list(dnac_session, token, 'Routers', offset)
-            except Exception as e:
-                raise e
+            response = self.get_device_list('Routers', request_offset)
 
             retrieved_device_list += response
 
             if len(response) == 100:
-                offset+=100
+                request_offset+=100
                 continue
             break
 
-        offset = 0
+        request_offset = 0
         while True:
-            try:
-                response = DNACManager.get_device_list(dnac_session, token, 'Switches and Hubs', offset)
-            except Exception as e:
-                raise e
+            response = self.get_device_list('Switches and Hubs', request_offset)
 
             retrieved_device_list += response     
             
             if len(response) == 100:
-                offset+=100
+                request_offset+=100
                 continue
             break
         
@@ -152,15 +147,13 @@ class DNACManager:
                 'owner': utils.calc_owner(device['hostname']),
                 'organisation': ''
             }
-            try:
-                retrieved_interfaces = DNACManager.get_interfaces(dnac_session, token, device)
-            except Exception as e:
-                raise e
+            
+            retrieved_interfaces = self.get_interfaces(device)
             
             device_interfaces = []
             for interface in retrieved_interfaces:
                 if interface['ipv4Address'] is not None:
-                    if utils.check_ip_in_ignored(interface['ipv4Address']):
+                    if utils.check_ignored_address(interface['ipv4Address']):
                         continue
                     elif interface['adminStatus'] == 'DOWN':
                         print(f'Interface {interface["portName"]} administratively down. Skipping...')

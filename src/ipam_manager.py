@@ -1,19 +1,8 @@
 from . import constants as c
 from . import utils
-#from . import constants as c
+
 import requests
 import ipaddress
-
-
-#---------- Used for dev/debugging ----------
-
-#with open('../debug_dnac_device.json', 'r') as f:
-#    debug_device = json.load(f)
-#
-#with open('../debug_interface.json') as f:
-#    debug_interface = json.load(f)
-
-#---------- Used for dev/debugging ----------
 
 
 class IPAMManager:
@@ -56,7 +45,7 @@ class IPAMManager:
         return response
 
 
-    def get_subnet(self, network_address):
+    def get_subnet(self, network_address:str):
         """Requests subnet information for a given network address"""
         response = requests.get(
             self.base_url + self.get_subnet_endpoint+network_address+'/',
@@ -66,6 +55,7 @@ class IPAMManager:
 
         if response.status_code != 200:
             raise ValueError(f"Unexpected response status: {response.status_code} - {response.content}")
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
 
         response_data = response.json()
         if not response_data.get('success', False):
@@ -79,10 +69,11 @@ class IPAMManager:
             'cidr': response.json()['data'][0]['mask'],
             'id': response.json()['data'][0]['id']
         }
+
         return subnet
 
 
-    def get_subnet_id(self, network_address):
+    def get_subnet_id(self, network_address:str):
         """Requests a subnet ID for a given network address"""
         print(f'Searching subnet ID for {network_address}')
 
@@ -108,7 +99,7 @@ class IPAMManager:
         return subnet_id
     
 
-    def get_vrf_id(self, vrf_name):
+    def get_vrf_id(self, vrf_name:str):
         """Requests a list of available VRFs from the IPAM database and calculates matching vrfId for a specified VRF-name"""
         response = requests.get(
             self.base_url + self.get_vrfs_endpoint,
@@ -130,7 +121,7 @@ class IPAMManager:
         return None
         
 
-    def get_master_subnet(self, possible_master_subnets):
+    def get_master_subnet(self, possible_master_subnets:list):
         """Searches for existing subnets in the IPAM database that match the list of possible master subnets"""
         existing_possible_master_subnets = []
         for master_subnet in possible_master_subnets:
@@ -159,7 +150,7 @@ class IPAMManager:
             return None
 
 
-    def create_subnet(self, network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, section_id, master_subnet_id=None):
+    def create_subnet(self, network_address:str, cidr:str, subnet_name:str, subnet_description:str, vrf_id, section_id, master_subnet_id=None):
         """Creates a new subnet object in the IPAM-database"""
         print(f'Creating object for subnet {network_address}/{cidr}')
 
@@ -202,7 +193,7 @@ class IPAMManager:
             }
     
 
-    def get_address(self, network_address):
+    def get_address(self, network_address:str):
         """Requests data for a given network address"""
         print(f'Requesting data for address {network_address} from {self.base_url}')
 
@@ -227,7 +218,7 @@ class IPAMManager:
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
     
 
-    def create_address(self, interface, device, subnet_id):
+    def create_address(self, interface:dict, device:dict, subnet_id):
         """Creates a new address object in the IPAM-database"""
         print(f"Creating object for address {interface['ipv4Address']}")
         params = {
@@ -258,7 +249,7 @@ class IPAMManager:
             raise ValueError(f"Unexpected response: {response.status_code} - {response.content}")
 
 
-    def update_address(self, updated_address):
+    def update_address(self, updated_address:dict):
         """Updates an existing address object in the IPAM-database"""
         print(f"Updating address object ID: {updated_address['id']}...")
         params = {}
@@ -293,7 +284,8 @@ class IPAMManager:
             raise ValueError(f"Update failed: {response_data.get('message', 'Unknown error')}")
     
 
-    def update_ipam(self, devices):
+    # This method should be rewritten and/or split into multiple methods or potentially classes like Device and Interface
+    def update_ipam(self, devices:list):
         """Updates the IPAM database with the provided device and interface list"""
         updated_addresses = []
         updated_subnets = []
@@ -337,16 +329,10 @@ class IPAMManager:
                         return
                     elif subnet_id is None:
                         possible_master_subnets = utils.calc_master_subnets(network_address_full)
-                        
-                        try:
-                            master_subnet = self.get_master_subnet(possible_master_subnets)
-                        except Exception as e:
-                            print(f"An unexpected error occurred: {e}")
+                        master_subnet = self.get_master_subnet(possible_master_subnets)
                         
                         if master_subnet is not None:
-
                             master_subnet_id = self.get_subnet_id(master_subnet)
-
                             response = self.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
                             subnet_id = response['id']
                             if subnet_id is None:
@@ -355,8 +341,7 @@ class IPAMManager:
                                 print('Skipping...')
                                 conflicts.append(response)
                                 continue
-                            else:
-                                change_type = 'create'
+
                         else:
                             print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
                             
@@ -404,7 +389,7 @@ class IPAMManager:
             print('No changes were made')
 
 
-    def calculate_diff(self, devices):
+    def calculate_diff(self, devices:list):
         """Calculates the differences between the source and the IPAM database"""
 
         #Defines a new dictionary including four lists with pending new and updated subnets and addresses

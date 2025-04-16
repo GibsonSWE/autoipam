@@ -13,12 +13,12 @@ def show_version():
     print(f"Released: {c.RELEASE['date']}")
 
 
-def calc_org(hostname):
+def calc_org(hostname:str):
     """Calculates organization for device using hostname (Not yet implemented)"""
     pass
 
 
-def calc_owner(hostname):
+def calc_owner(hostname:str):
     """Calculates owner for device using hostname"""
     if hostname.find('SE-MUN-PAPER') != -1:
         return 'SCA Munksund När-IT'
@@ -28,7 +28,7 @@ def calc_owner(hostname):
         return 'SCA IT-infrastruktur network'
     
 
-def calc_subnet(ip_address, subnet_mask):
+def calc_subnet(ip_address:str, subnet_mask:str):
     """Calculates subnet information from ip-address and subnet mask"""
     print(f"Calculating subnet for ip {ip_address} with mask {subnet_mask}")
     ip = ipaddress.IPv4Address(ip_address)
@@ -44,7 +44,7 @@ def calc_subnet(ip_address, subnet_mask):
     return subnet
 
 
-def calc_master_subnets(subnet):
+def calc_master_subnets(subnet:dict):
     """Calculates all the possible master subnets for a given subnet"""
     print(f'Calculating master subnets for {subnet}')
     master_subnets = set()
@@ -126,14 +126,14 @@ def compile_new_subnet_data(subnet_id:int, network_address:str, subnet_mask:str,
     return subnet_data
 
 
-def check_ip_in_subnet(ip_address, subnet):
+def check_ip_in_subnet(ip_address:str, subnet:dict):
     """Checks if a given ip address belongs to a subnet or address range and returns True or False"""
     ip = ipaddress.ip_address(ip_address)
     network = ipaddress.ip_network(subnet, strict=False)
     return ip in network
 
 
-def check_ip_in_ignored(ip_address):
+def check_ignored_address(ip_address:str):
     """Checks if a given ip address is part of the ignored address ranges configured in constants.py"""
     for subnet in c.IGNORED_IP_RANGES:
         if check_ip_in_subnet(ip_address, subnet):
@@ -142,7 +142,7 @@ def check_ip_in_ignored(ip_address):
     return False
 
 
-def calc_vrf(subnet):
+def calc_vrf(subnet:dict):
     """Calculates associated VRF for a specified subnet"""
     subnet_network = ipaddress.ip_network(subnet)
 
@@ -221,7 +221,7 @@ def export_update_report(updated_subnets, updated_addresses):
     export_csv(c.ADDRESS_REPORT_PATH+c.ADDRESS_REPORT_FILE_NAME, updated_addresses, field_names)
 
 
-def export_json(file_name, data):
+def export_json(file_name:str, data):
     """Creates a json file with provided data"""
     timestamp = f'_{datetime.now().strftime("%Y%m%d_%H%M")}'
     full_file_name = file_name+timestamp
@@ -237,7 +237,7 @@ def export_json(file_name, data):
         print('Done\n')
 
 
-def export_csv(file_name, data, fieldnames):
+def export_csv(file_name:str, data, fieldnames:list):
     """Creates a csv file with provided data and ensures the required folder structure exists"""
     timestamp = f'_{datetime.now().strftime("%Y%m%d_%H%M")}'
     full_file_name = file_name+timestamp
@@ -257,7 +257,7 @@ def export_csv(file_name, data, fieldnames):
     print(f'{unique_file_name} created')
 
 
-def check_duplicate_file(file_name, file_extension):
+def check_duplicate_file(file_name:str, file_extension:str):
     """Checks for duplicate file name and appends a unique identifier to the provided file name if needed"""
     dupe_identifier = ''
     dupe_num = 1

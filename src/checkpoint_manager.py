@@ -103,7 +103,7 @@ class CheckpointManager:
         return devices
 
 
-    def get_from_checkpoint_single(self, device):
+    def get_from_checkpoint_single(self, device:dict):
         """Returns interface data for a specific device"""
         print(f"\nRequesting data for {device['name']}")
         try:
@@ -121,7 +121,7 @@ class CheckpointManager:
             return devices        
 
 
-    def select_checkpoint_data(self, sid, device):
+    def select_checkpoint_data(self, sid, device:dict):
         """Selects data and converts it to a standardized convention"""
         device_interfaces = []
         try:

@@ -51,6 +51,30 @@ class CLI:
         }
 
 
+    def completer(self, text, state):
+        """Tab completer"""
+        if self.subsession:
+            commands = self.commands['info_commands'] | self.commands['source_selection_commands'] | self.commands['exit_subsession_commands']
+        else:
+            commands = self.commands['info_commands'] | self.commands['action_commands'] | self.commands['exit_cli_commands']
+
+        options = [cmd for cmd in commands.keys() if cmd.startswith(text)]
+        if state < len(options):
+            return options[state]
+        else:
+            return None
+
+
+    def set_completer(self, completer):
+        """Sets the completer for the CLI"""
+        self.completer = completer
+        readline.set_completer(completer)
+        readline.parse_and_bind('tab: complete')
+        readline.parse_and_bind('set editing-mode emacs')
+        readline.parse_and_bind('set show-all-if-ambiguous on')
+        readline.parse_and_bind('set show-all-if-unmodified on')
+
+
     def start(self):
         """Starts the CLI"""
         print(self.intro)
@@ -95,8 +119,8 @@ class CLI:
                 return None
 
 
-    def start_subsession(self, mode):
-        """Starts a subsession"""
+    def start_subsession(self, mode:str):
+        """Starts a subsession in either update or diff mode"""
         self.subsession = True
         self.show_help()
         self.ipam_manager = IPAMManager()
@@ -147,8 +171,8 @@ class CLI:
                 return None
 
 
-    def execute_command(self, user_command):
-        """Executes a command"""
+    def execute_command(self, user_command:str):
+        """Executes a user command"""
         if user_command in self.commands['info_commands']:
             return self.commands['info_commands'][user_command]()
         elif user_command in self.commands['action_commands']:
@@ -161,7 +185,7 @@ class CLI:
 
 
     def show_help(self):
-        """Displays the available CLI-commands"""
+        """Displays the available CLI-commands for either the main session or the subsession"""
         if self.subsession:
             print()
             print('You can update IPAM with data from the following sources:')
@@ -184,8 +208,8 @@ class CLI:
             print()
 
 
-    def show_diff(self, pending_changes):
-        """Displays the calculated differences between the source and the IPAM database"""
+    def show_diff(self, pending_changes:dict):
+        """Prints the calculated differences between the source and the IPAM database"""
         print('\nPending Changes:')
 
         print('\nNew Subnet Objects:')    
@@ -200,6 +224,8 @@ class CLI:
                         if key == 'Cidr':
                             key = key.upper()
                             value = '/'+value
+                        if key == 'Vrf':
+                            key = key.upper()
                         print(f"    {key}: {value}")
 
         print('\nNew Address Objects:')
@@ -226,40 +252,16 @@ class CLI:
                         print(f"    {key}: {value}")
 
 
+    def exit_subsession(self):
+        """Exits the current subsession"""
+        print()
+        self.subsession = False
+        return None
+
+
     def exit_cli(self):
         """Exits the CLI"""
         print()
         print('Exiting AutoIpam...')
         return None
-
-
-    def exit_subsession(self):
-        """Callable exit function for sub sessions"""
-        print()
-        self.subsession = False
-        return None    
-
-
-    def set_completer(self, completer):
-        """Sets the completer for the CLI"""
-        self.completer = completer
-        readline.set_completer(completer)
-        readline.parse_and_bind('tab: complete')
-        readline.parse_and_bind('set editing-mode emacs')
-        readline.parse_and_bind('set show-all-if-ambiguous on')
-        readline.parse_and_bind('set show-all-if-unmodified on')
-
-
-    def completer(self, text, state):
-        """Tab completer"""
-        if self.subsession:
-            commands = self.commands['info_commands'] | self.commands['source_selection_commands'] | self.commands['exit_subsession_commands']
-        else:
-            commands = self.commands['info_commands'] | self.commands['action_commands'] | self.commands['exit_cli_commands']
-
-        options = [cmd for cmd in commands.keys() if cmd.startswith(text)]
-        if state < len(options):
-            return options[state]
-        else:
-            return None
 
