@@ -1,6 +1,6 @@
 *test.py
 pwd.json
-*.json
+dnac*.json
 *.log
 output.txt
 __pycache__

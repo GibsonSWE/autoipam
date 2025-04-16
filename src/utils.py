@@ -146,35 +146,10 @@ def calc_vrf(subnet:dict):
     """Calculates associated VRF for a specified subnet"""
     subnet_network = ipaddress.ip_network(subnet)
 
-    for network in c.SCA_PROCESS_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_PROCESS'
-        
-    for network in c.SCA_FACILITY_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_FACILITY'
-    
-    for network in c.SCA_MGMT_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_MGMT'
-        
-    for network in c.SCA_PRINT_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_PRINT'
-    
-    for network in c.SCA_COMMON_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_COMMON'
-    
-    for network in c.SCA_DC_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_DC'
-        
-    for network in c.SCA_DMZ_VRF:
-        if subnet_network.subnet_of(network):
-            return 'SCA_DMZ'
-        
-    return None
+    for vrf, networks in c.VRFS.items():
+        for network in networks:
+            if subnet_network.subnet_of(network):
+                return vrf
 
 
 def export_update_report(updated_subnets, updated_addresses):

@@ -1,6 +1,7 @@
 import os
 import ipaddress
 from configparser import ConfigParser
+import json
 
 # This file contains all the constants used in the project.
 
@@ -8,13 +9,37 @@ from configparser import ConfigParser
 # Opens the config.ini file and reads the configuration
 try:
     config_file = os.path.join(os.path.dirname(__file__), '../config.ini')
-    config = ConfigParser()
+    config = ConfigParser(converters={'list': lambda x: [i.strip() for i in x.split(',')] if len(x) > 0 else []})
     config.read(config_file)
 except FileNotFoundError:
     print(f"Error: Configuration file not found at {config_file}. Please check the path.")
     raise
 except Exception as e:
     print(f"Error reading configuration file: {e}")
+    raise
+
+
+# Loads the VRFs from the vrfs.json file
+vrfs_config_file = os.path.join(os.path.dirname(__file__), '../vrfs.json')
+try:
+    with open(vrfs_config_file, 'r') as file:
+        VRFS = json.load(file)
+except FileNotFoundError:
+    print(f"Error: VRFs file not found at {vrfs_config_file}. Please check the path.")
+    raise
+except json.JSONDecodeError as e:
+    print(f"Error decoding VRFs JSON file: {e}")
+    raise
+except Exception as e:
+    print(f"Error loading VRFs file: {e}")
+    raise
+
+# Converts VRF networks from strings to ipaddress.IPv4Network objects
+try:
+    for vrf, networks in VRFS.items():
+        VRFS[vrf] = [ipaddress.ip_network(network) for network in networks]
+except ValueError as e:
+    print(f"Error converting VRF networks to ipaddress.IPv4Network objects: {e}")
     raise
 
 
