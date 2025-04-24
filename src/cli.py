@@ -18,6 +18,7 @@ class CLI:
         self.subsession_diff_prompt = 'AutoIpam (diff source)> '
         self.intro = '############################## AutoIpam ##############################'
         self.subsession = False
+        self.subsession_mode = None
         self.dnac_manager = DNACManager()
         self.checkpoint_manager = CheckpointManager()
         self.vmanage_manager = VmanageManager()
@@ -79,7 +80,7 @@ class CLI:
         """Starts the CLI"""
         print(self.intro)
         utils.show_version()
-        CLI.show_help(self)
+
         while True:
             try:
                 self.set_completer(self.completer)
@@ -122,22 +123,22 @@ class CLI:
     def start_subsession(self, mode:str):
         """Starts a subsession in either update or diff mode"""
         self.subsession = True
-        self.show_help()
+        if mode == 'update':
+            self.subsession_mode = 'update'
+            self.subsession_prompt = self.subsession_update_prompt
+        elif mode == 'diff':
+            self.subsession_mode = 'diff'
+            self.subsession_prompt = self.subsession_diff_prompt
+
         self.ipam_manager = IPAMManager()
         while True:
             try:
                 self.set_completer(self.completer)
 
-                if mode == 'update':
-                    self.subsession_prompt = self.subsession_update_prompt
-                elif mode == 'diff':
-                    self.subsession_prompt = self.subsession_diff_prompt
-
                 user_command = input(self.subsession_prompt).lower().strip()
                 if user_command == '':
                     continue
                 elif user_command in ['exit', 'back']:
-                    self.subsession = False
                     self.exit_subsession()
                     break
                 elif user_command in self.commands['info_commands']:
@@ -155,7 +156,7 @@ class CLI:
                         
                         # Creates a file in json-format and exports the calculated differences between the source and the IPAM database
                         while True:
-                            export_prompt = input('\nExport the diff result? [Y/n] ').lower().strip()
+                            export_prompt = input('\nExport diff report? [Y/n] ').lower().strip()
                             if export_prompt == 'n':
                                 break
                             elif export_prompt == 'y' or export_prompt == '':
@@ -188,23 +189,31 @@ class CLI:
         """Displays the available CLI-commands for either the main session or the subsession"""
         if self.subsession:
             print()
-            print('You can update IPAM with data from the following sources:')
-            print('Command:         Source:')
-            print('dnac           - Cisco DNA-Center')
-            print('checkpoint     - Check Point')
-            print('vmanage        - Cisco vmanage')
-            print('exit/back      - Go back')
+            print(f'Usage: AutoIpam ({self.subsession_mode} source)> <command>')
+            print()
+            print('Available Commands:')
+            print('  dnac           - Fetch data from Cisco DNA-Center')
+            print('  checkpoint     - Fetch data from Check Point')
+            print('  vmanage        - Fetch data from Cisco vManage')
+            print('  exit/back      - Exit the current subsession')
+            print()
+            print('Description:')
+            print('  Use these commands to select a source and update or compare data with the IPAM database.')
             print()
         else:
             print()
-            print('Commands:        Description:')
-            print('update         - Update IPAM')
-            print('diff           - Show data difference between the IPAM database and the source')
-            print('version        - Show script version')
-            print('?/help         - Show this help output')
-            print('exit/quit      - Exit script\n')
-            print('Press TAB to autocomplete command')
-            print('Use UP and DOWN arrows to traverse command history')
+            print('Usage: AutoIpam> <command>')
+            print()
+            print('Available Commands:')
+            print('  update         - Update IPAM with data from a source')
+            print('  diff           - Show differences between the IPAM database and a source')
+            print('  version        - Display the current script version')
+            print('  ?/help         - Show help output')
+            print('  exit/quit      - Exit the AutoIpam CLI')
+            print()
+            print('Tips:')
+            print('  - Press TAB to autocomplete commands.')
+            print('  - Use UP and DOWN arrows to navigate command history.')
             print()
 
 
@@ -256,6 +265,7 @@ class CLI:
         """Exits the current subsession"""
         print()
         self.subsession = False
+        self.subsession_mode = None
         return None
 
 
