@@ -72,8 +72,7 @@ DNAC_USERNAME = config.get('DNA-Center', 'username')
 IPAM_APP_ID = config.get('phpIpam', 'app_id')
 
 # IP ranges that the script should ignore
-IGNORED_IP_RANGES = config.get('IP Configs', 'ignored_ip_ranges')
-
+IGNORED_IP_RANGES = config.getlist('IP Configs', 'ignored_ip_ranges')
 
 # VRFs
 SCA_PROCESS_VRF = [

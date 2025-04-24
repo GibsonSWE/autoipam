@@ -1,5 +1,5 @@
 
 Todo:
-  ☐ Move if statement for export_update_report() to outside of the functions
-  ☐ Create config file for the script
-  ☐ Improve error handling @started(25-03-30 03:50)
+  ✔ Move if statement for export_update_report() to outside of the functions @done(25-03-31 23:08)
+  ✔ Create config file for the script @done(25-04-16 02:21)
+  ✔ Improve error handling @started(25-03-30 03:50) @done(25-04-16 02:21) @lasted(2w2d22h31m26s)
