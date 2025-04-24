@@ -333,7 +333,7 @@ class IPAMManager:
                         
                         if master_subnet is not None:
                             master_subnet_id = self.get_subnet_id(master_subnet)
-                            response = self.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
+                            response = self.create_subnet(network_address, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID, master_subnet_id)
                             subnet_id = response['id']
                             if subnet_id is None:
                                 print(f'Error creating {response["subnet"]}')
@@ -345,7 +345,7 @@ class IPAMManager:
                         else:
                             print(f"Calculated existing master subnet for {network_address_full}: {master_subnet}")
                             
-                            response = self.create_subnet(network_address, subnet_mask, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
+                            response = self.create_subnet(network_address, cidr, subnet_name, subnet_description, vrf_id, c.SECTION_ID)
                             try:
                                 subnet_id = response['id']
                             except TypeError as e:
